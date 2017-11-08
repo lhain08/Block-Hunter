@@ -48,7 +48,7 @@ background=pygame.Surface((bwidth,bheight))
 background=background.convert()
 background.fill(BLACK)
 
-weapons = [weap("Semi-Auto",15,200,8, 0,8,"USP","USP.png",1,5,0),weap("Full-Auto",8,130,25,3,15,"M27","Machine Gun.png",5,3,80),weap("Shotgun",10,85,5,6,15,"Sawed-Off Shotgun","Sawed-Off.png",10,2,100),weap("Sniper",55,500,5,20,35,"Intervention","Intervention.png",15,15,200)]
+weapons = [weap("Semi-Auto",15,200,8, 0,8,"USP","USP.png",1,5,0),weap("Full-Auto",8,130,25,3,15,"M27","Machine Gun.png",5,3,80),weap("Shotgun",10,85,5,6,15,"Sawed-Off Shotgun","Sawed-Off.png",10,3,100),weap("Sniper",55,500,5,20,35,"Intervention","Intervention.png",15,15,200)]
 if purchases:
     for i,x in enumerate(purchases):
         weapons[i].purchased = x
