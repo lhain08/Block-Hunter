@@ -5,25 +5,41 @@ import random as rander
 from pygame.locals import *
 
 
-global xp, cash, weapon
+global lcash, cash, weapon
 try:
     f = open("Save.pickle",'r')
     data = pickle.load(f)
     f.close()
-    weapon, cash, rank, level, purchases, dlvls = data
-except:
-    print 'No readable save'
+    weapon, lcash, rank, level, headnum, purchases, dlvls = data
+    data = None
+except ValueError:
+    print 'Updating Save, please wait'
+    f = open("Save.pickle",'r')
+    data = pickle.load(f)
+    f.close()
     weapon = 0
-    cash = 0
+    lcash = 0
     rank = 0
     level = 1
     cash = 0
     purchases = None
     dlvls = None
+    headnum = 1
+except:
+    weapon = 0
+    lcash = 0
+    rank = 0
+    level = 1
+    cash = 0
+    purchases = None
+    dlvls = None
+    headnum = 1
+    data = None
+    print 'A problem occurred, please try again'
 
 pygame.init()
 
-cashico = pygame.image.load("Cash.png")
+cashico = pygame.image.load("Images/Cash.png")
 cashico = pygame.transform.scale(cashico,(70,70))
 cashrect = cashico.get_rect()
 cashrect.left = 5
@@ -48,29 +64,36 @@ background=pygame.Surface((bwidth,bheight))
 background=background.convert()
 background.fill(BLACK)
 
-weapons = [weap("Semi-Auto",15,200,8, 0,8,"USP","USP.png",1,5,0),weap("Full-Auto",8,130,25,3,15,"M27","Machine Gun.png",5,3,80),weap("Shotgun",10,85,5,6,15,"Sawed-Off Shotgun","Sawed-Off.png",10,3,100),weap("Sniper",55,500,5,20,35,"Intervention","Intervention.png",15,15,200)]
-if purchases:
-    for i,x in enumerate(purchases):
-        weapons[i].purchased = x
-else:
-    weapons[0].purchased = True
-
-if dlvls:
-    for i,x in enumerate(dlvls):
-        weapons[i].dlvl = x
-        weapons[i].damage += weapons[i].dinc * (weapons[i].dlvl - 1)
+weapons = [weap("Semi-Auto",15,200,8, 0,8,"USP","Images/USP.png",1,5,0),weap("Full-Auto",8,130,25,3,15,"M27","Images/Machine Gun.png",5,3,80),weap("Shotgun",10,85,5,6,15,"Sawed-Off Shotgun","Images/Sawed-Off.png",10,3,100),weap("Sniper",55,500,5,20,35,"Intervention","Images/Intervention.png",15,15,200)]
 
 global player
 player = Player.player(100, height - 200)
-if weapons[weapon].purchased:
-    player.weapon = weapons[weapon]
-else:
-    player.weapon = weapons[0]
-player.rank = rank
-player.level = level
+
+def reset():
+    global player, cash, weapon, headnum, lcash
+    if purchases:
+        for i, x in enumerate(purchases):
+            weapons[i].purchased = x
+    else:
+        weapons[0].purchased = True
+    if weapons[weapon].purchased:
+        player.weapon = weapons[weapon]
+    else:
+        player.weapon = weapons[0]
+    player.rank = rank
+    player.level = level
+    player.headnum = headnum
+    player.set_head()
+    if dlvls:
+        for i, x in enumerate(dlvls):
+            weapons[i].dlvl = x
+            weapons[i].damage += weapons[i].dinc * (weapons[i].dlvl - 1)
+    cash = lcash
+
+reset()
 
 def main(enenum, reqkills):
-    global player, xp, cash
+    global player, cash
     player.reset(100, height - 200)
     player.clip = player.weapon.magsize
     breakout = False
@@ -100,8 +123,6 @@ def main(enenum, reqkills):
         enemies.append(Enemies.Enemy(sx, sy, 100))
     while True:
         k = pygame.key.get_pressed()
-        if k[K_g]:
-            print player.zone, player.awareness
 
         clock.tick(100)
         background.fill(BLACK)
@@ -221,7 +242,13 @@ def main(enenum, reqkills):
             ccolor = (255,255,255)
             if i >= player.clip:
                 ccolor = (120,120,120)
-            pygame.draw.rect(screen,ccolor,((900-(15*(i+1))),(600 - 30),8,20))
+            pygame.draw.rect(screen,ccolor,((900-(5*(i+1))),(600 - 15),4,10))
+
+        for i in range(0,player.grenmax):
+            ccolor = (0,150,0)
+            if i>=player.grenum:
+                ccolor = (120,120,120)
+            pygame.draw.circle(screen,ccolor,(900-(15*(i+1)),600 - 25),7)
 
         pygame.display.flip()
 
@@ -312,6 +339,9 @@ def main(enenum, reqkills):
         fadesurf.set_alpha(timer*20)
         screen.blit(fadesurf,(0,0))
         pygame.display.flip()
+        a,b,c = pygame.mouse.get_pressed()
+        if a and timer < 70:
+            break
         for event in pygame.event.get():
             if event.type == QUIT:
                 save()
@@ -361,11 +391,15 @@ def Menu():
         pt = bfont.render("PLAY",1,(255,255,0))
         ptp = pt.get_rect()
         ptp.centerx = width/2
-        ptp.centery = height/3
+        ptp.centery = height*2/5
         st = bfont.render("SHOP",1,(255,255,0))
         stp = st.get_rect()
         stp.centerx = width/2
-        stp.centery = height *2/3
+        stp.centery = height *3/5
+        cut = bfont.render('CUSTOMIZE',1,(255,255,0))
+        cutp = cut.get_rect()
+        cutp.centerx = width/2
+        cutp.centery = height *4/5
         pos = pygame.mouse.get_pos()
         if ptp.collidepoint(pos):
             pygame.draw.rect(screen,BLUE,ptp)
@@ -377,14 +411,85 @@ def Menu():
             a,b,c = pygame.mouse.get_pressed()
             if a:
                 Shop()
+        if cutp.collidepoint(pos):
+            pygame.draw.rect(screen,BLUE,cutp)
+            a,b,c = pygame.mouse.get_pressed()
+            if a:
+                Customize()
+
         screen.blit(pt,ptp)
         screen.blit(st,stp)
+        screen.blit(cut,cutp)
         pygame.display.flip()
         for event in pygame.event.get():
             if event.type == QUIT:
                 save()
                 breakout = True
 
+        if breakout:
+            break
+
+def Customize():
+    global player
+    breakout = False
+    lfont = pygame.font.Font(None, 15)
+    n = 4
+    while True:
+        screen.fill((0,0,0))
+        v = 1
+        p = 1
+        h =20
+        w = width / (n + 1)
+        iw = w * 5 / 6
+        while True:
+            try:
+                if p > n:
+                    p -= n
+                    h += w
+                img = pygame.image.load("Images/front" + str(v) + ".png")
+                img = pygame.transform.scale(img, (iw,iw))
+                rect = img.get_rect()
+                rect.left = int((p-.5)*w)
+                rect.top = h
+                pos = pygame.mouse.get_pos()
+                if player.level >= (v-1)*2:
+                    if rect.collidepoint(pos):
+                        pygame.draw.rect(screen,(255,255,255),rect, 10)
+                        a,b,c = pygame.mouse.get_pressed()
+                        if a and player.headnum != v:
+                            player.headnum = v
+                            player.set_head()
+                    if v == player.headnum:
+                        pygame.draw.rect(screen, (0,255,0),rect, 10)
+                    screen.blit(img, rect)
+                else:
+                    screen.blit(img, rect)
+                    lock = pygame.image.load("Images/Lock.png")
+                    lock = pygame.transform.scale(lock,(rect.width,rect.height))
+                    screen.blit(lock,rect)
+                    lt = lfont.render("LEVEL " + str((v-1)*2),1,(255,0,0))
+                    ltp = lt.get_rect()
+                    ltp.centerx = rect.centerx
+                    ltp.top = rect.bottom + 3
+                    screen.blit(lt,ltp)
+
+            except:
+                break
+            v += 1
+            p += 1
+        font = pygame.font.Font(None, 40)
+        bt = font.render("BACK",1,BLACK,WHITE)
+        btp = bt.get_rect()
+        btp.right = width -15
+        btp.bottom = height - 15
+        screen.blit(bt, btp)
+        a,b,c = pygame.mouse.get_pressed()
+        if btp.collidepoint(pygame.mouse.get_pos()) and a:
+            break
+        pygame.display.flip()
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                breakout = True
         if breakout:
             break
 
@@ -532,7 +637,7 @@ def Shop():
                 pygame.display.quit()
                 quit()
 
-def save():
+def save(data = []):
     global player,weapon,xp,cash
     weapon = weapons.index(player.weapon)
     purchases = []
@@ -541,8 +646,23 @@ def save():
         purchases.append(i.purchased)
         dlvls.append(i.dlvl)
     f = open("Save.pickle",'w')
-    pickle.dump([weapon,cash,player.rank,player.level,purchases,dlvls],f)
+    datlist = [weapon,cash,player.rank,player.level, player.headnum,purchases,dlvls]
+    if data:
+        for i,x in enumerate(data):
+            try:
+                datlist[i] = x
+            except:
+                pass
+    pickle.dump(datlist,f)
     f.close()
+if data:
+    save(data)
+    f = open("Save.pickle",'r')
+    data = pickle.load(f)
+    f.close()
+    weapon, lcash, rank, level, headnum, purchases, dlvls = data
+    data = None
+    reset()
 
 Menu()
 pygame.display.quit()

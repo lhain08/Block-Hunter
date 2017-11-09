@@ -17,7 +17,7 @@ class player():
         self.kills = 0
         self.deaths = 0
         self.alive = True
-        self.skulls = pygame.image.load("red-skull.png")
+        self.skulls = pygame.image.load("Images/red-skull.png")
         self.skulls = pygame.transform.scale(self.skulls, (45,45))
         self.skullsurf = pygame.Surface((45,45), SRCALPHA , 32)
         self.skullsurf.blit(self.skulls,(0,0))
@@ -33,6 +33,16 @@ class player():
         self.reloading = False
         self.rank = 0
         self.level = 1
+        self.headnum = 1
+        self.headimg = pygame.image.load("Images/front" + str(self.headnum) + ".png")
+        self.sideimg = pygame.image.load("Images/side" + str(self.headnum) + ".png")
+        self.grenades = []
+        self.gvar = False
+        self.grenum = 1
+        self.grenmax = 3
+    def set_head(self):
+        self.headimg = pygame.image.load("Images/front" + str(self.headnum) + ".png")
+        self.sideimg = pygame.image.load("Images/side" + str(self.headnum) + ".png")
     def reset(self, x, y):
         self.rect = pygame.Rect(x, y, 30, 50)
         self.rect.top = y
@@ -53,6 +63,8 @@ class player():
         self.curstreak = 0
         self.killstreak = 0
         self.reloading = False
+        self.grenades = []
+        self.grenum = self.grenmax
     def draw(self, screen, color, walls, xscroll, yscroll, spawnpoints, enemies, truescreen):
         key = pygame.key.get_pressed()
         if (self.clip <=0 or key[K_r]) and not self.reloading and self.clip < self.weapon.magsize:
@@ -74,7 +86,9 @@ class player():
                     if self.health >10:
                         self.health = 10
             onBlock = False
-            pygame.draw.rect(screen,color,self.rect)
+            self.head = pygame.Rect(self.rect.left + 3, self.rect.top,self.rect.width-6,self.rect.height/3)
+            self.body = pygame.Rect(self.rect.left,self.rect.top + self.rect.height/3,self.rect.width,self.rect.height*2/3)
+            pygame.draw.rect(screen,color,self.body)
             mx,my = pygame.mouse.get_pos()
             mx += xscroll
             my += yscroll
@@ -92,6 +106,25 @@ class player():
             imrec = img.get_rect()
             imrec.centerx = self.rect.centerx + shift
             imrec.centery = self.rect.centery
+
+            if key[K_f] and self.gvar and self.grenum > 0:
+                self.grenum -= 1
+                self.grenades.append(grenade(th,self,mx,my))
+                self.gvar = False
+            elif not key[K_f] and not self.gvar:
+                self.gvar = True
+            hrect = self.head
+            if self.headnum == 8:
+                hrect.width += 8
+                hrect.left -= 4
+            if (math.degrees(th) > -70 and math.degrees(th) < 70) or (math.degrees(th) > 290 and math.degrees(th) < 430):
+                screen.blit(pygame.transform.scale(self.sideimg,(self.head.width,self.head.height)),hrect)
+            elif (math.degrees(th) > 110 and math.degrees(th) < 250) or (math.degrees(th) < -110 and math.degrees(th) > -250):
+                himg = pygame.transform.flip(self.sideimg,True,False)
+                screen.blit(pygame.transform.scale(himg,(self.head.width,self.head.height)),hrect)
+            else:
+                screen.blit(pygame.transform.scale(self.headimg,(self.head.width,self.head.height)),hrect)
+
             screen.blit(img,imrec)
 
             if self.health <10:
@@ -136,9 +169,6 @@ class player():
             if onBlock:
                 if k[K_UP] or k[K_w] or k[K_SPACE]:
                     self.vel[1] = -self.maxjump
-
-            if k[K_t]:
-                print self.rect.bottom, self.rect.left, self.rect.right
 
             if k[K_s] or k[K_DOWN]:
                 if self.rect.height==50:
@@ -195,8 +225,18 @@ class player():
                 self.rect.x, self.rect.y = spawnpoints[rand(0, len(spawnpoints) - 1)]
                 self.health = 10
                 self.clip = self.weapon.magsize
+                self.grenum = self.grenmax
                 self.vel = [0,0]
                 return True
+        poplist = []
+
+        for gren in self.grenades:
+            gv = gren.draw(walls, screen, enemies, self)
+            if gv:
+                poplist.append(gren)
+
+        for i in poplist:
+            self.grenades.remove(i)
 
 class bullet():
     def __init__(self, x, y, tx, ty, player):
@@ -218,12 +258,13 @@ class bullet():
 
         if hvar:
             for enemy in enemies:
-                if enemy.rect.collidepoint((int(self.x),int(self.y))):
+                if enemy.head.collidepoint((int(self.x),int(self.y))) or enemy.body.collidepoint((int(self.x),int(self.y))):
                     if enemy.alive and enemy.health > 0:
                         dead = True
                         enemy.health -= player.weapon.damage
+                        if enemy.head.collidepoint((int(self.x),int(self.y))):
+                            enemy.health -= player.weapon.damage
                         if enemy.health <= 0:
-
                             player.kills += 1
                             player.curstreak += 1
                         break
@@ -234,6 +275,82 @@ class bullet():
 
         if dead:
             return True
+
+class grenade():
+    def __init__(self, theta, player, mx, my):
+        v = math.fabs(math.hypot(player.rect.centerx - mx, player.rect.centery - my))
+        v = 8*math.log1p(v)+1
+
+        self.vel = [v*math.cos(theta),v*math.sin(theta)]
+        self.pos = [player.rect.centerx, player.rect.centery]
+        self.acc = [0, 4]
+        self.timer = 30
+        self.rad = 5
+    def draw(self, walls, screen, enemies, player):
+        if self.timer >3:
+            self.timer -=1
+            for i in range(0,5):
+                self.vel[1] += self.acc[1]/5.0
+                self.pos[1] += self.vel[1]/5.0
+                for wall in walls:
+                    if self.vel[1] > 0:
+                        if wall.rect.collidepoint((int(self.pos[0]),int(self.pos[1])+self.rad)):
+                            self.vel[1] *= -3/4.5
+                            self.pos[1] = wall.rect.top - self.rad
+                    elif self.vel[1] <0:
+                        if wall.rect.collidepoint((int(self.pos[0]),int(self.pos[1])-self.rad)):
+                            self.vel[1] *= -3/4.0
+                            self.pos[1] = wall.rect.bottom + self.rad
+                self.pos[0] += self.vel[0]/5.0
+                for wall in walls:
+                    if self.vel[0] > 0:
+                        if wall.rect.collidepoint((int(self.pos[0]) + self.rad, int(self.pos[1]))):
+                            self.vel[0] *= -3/5.0
+                            self.pos[0] = wall.rect.left - self.rad
+                    elif self.vel[0] < 0:
+                        if wall.rect.collidepoint((int(self.pos[0]) - self.rad, int(self.pos[1]))):
+                            self.vel[0] *= -3/5.0
+                            self.pos[0] = wall.rect.right + self.rad
+                    if self.pos[1] + self.rad == wall.rect.top:
+                        self.vel[0] *= 7/8.0
+                if self.vel[0] < 1 and self.vel[0] > -1 and self.vel[0] != 0:
+                    self.vel[0] = 0
+
+            pygame.draw.circle(screen, (0,150,0),(int(self.pos[0]),int(int(self.pos[1]))),self.rad)
+            return False
+        elif self.timer == 3 or self.timer == 0:
+            self.timer -= 1
+            pygame.draw.circle(screen,(255,255,100),(int(self.pos[0]),int(self.pos[1])),20)
+        elif self.timer == 2:
+            self.timer -= 1
+            pygame.draw.rect(screen,(255,150,0),(int(self.pos[0])-35,int(self.pos[1])-35,70,70))
+            pygame.draw.circle(screen,(255,255,0),(int(self.pos[0]),int(self.pos[1])),50)
+        elif self.timer == 1:
+            self.timer -= 1
+            pygame.draw.circle(screen,(255,165,0),(int(self.pos[0]),int(self.pos[1])),100)
+            pygame.draw.circle(screen,(255,0,0),(int(self.pos[0]),int(self.pos[1])),70)
+            pygame.draw.circle(screen,(255,255,90),(int(self.pos[0]),int(self.pos[1])),30)
+            pygame.draw.circle(screen,(255,255,255),(int(self.pos[0]),int(self.pos[1])),10)
+            for e in enemies:
+                hit = False
+                if e.alive and e.rect.colliderect(pygame.Rect(self.pos[0]-100,self.pos[1]-100,200,200)):
+                    for x in (e.rect.left,e.rect.right):
+                        for y in (e.rect.top,e.rect.bottom):
+                            if math.hypot(self.pos[0]-x,self.pos[1]-y) < 100:
+                                hit = True
+                if hit:
+                    damage = 1.5*(22*((100/(math.hypot(self.pos[0]-e.rect.centerx,self.pos[1]-e.rect.centery)+10))**2))
+                    e.health -= damage
+                    if e.health <= 0 and e.alive:
+                        e.deadtimer = 70
+                        e.alive = False
+                        player.kills += 1
+                        player.curstreak += 1
+
+        else:
+            return True
+
+
 
 class weapon():
     def __init__(self,Class,damage,accuracy,magsize,firerate,reloadtime,name,image,reqlevel,dinc,cost):
@@ -254,7 +371,7 @@ class weapon():
         self.dinc = dinc
         self.purchased = False
         self.cost = cost
-        self.classlist = ["Semi-Auto","Full-Auto","Shotgun","Sniper"]
+        self.classlist = ["Semi-Auto","Full-Auto","Sniper","Shotgun"]
     def shopdraw(self,screen, y, width, height, player, cash):
         try:
             font = pygame.font.SysFont('andalemono',25)

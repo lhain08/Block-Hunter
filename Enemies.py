@@ -18,7 +18,7 @@ class Enemy():
         self.pausetimer = 40
         self.deadtimer = 0
         self.curblock = 0
-        self.skull = pygame.transform.scale(pygame.image.load("white-skull.png"),(45,45))
+        self.skull = pygame.transform.scale(pygame.image.load("Images/white-skull.png"),(45,45))
         self.skullsurf = pygame.Surface((45,45), pygame.SRCALPHA, 32)
         self.skullsurf.blit(self.skull,(0,0))
         self.targets = []
@@ -26,7 +26,9 @@ class Enemy():
             self.targets.append(0)
         a = [math.pi, 0]
         self.curthet = a[rand(0,1)] + (rand(-3,3)/10.0)
-        self.aimspeed = .1
+        self.aimspeed = .2
+        self.images = [pygame.image.load("Images/enemyfront.png"),pygame.image.load("Images/enemyright.png"),pygame.image.load("Images/enemyleft.png")]
+        self.images[2] = pygame.transform.flip(self.images[2],True,False)
 
     def draw(self,background,walls,color,player,xscroll,yscroll):
         if self.alive:
@@ -48,6 +50,10 @@ class Enemy():
 
             if self.cview(player,walls) and c < 500:
                 pthet = get_theta(self,player)
+                if self.curthet < 0:
+                    self.curthet += math.pi * 2
+                if pthet < 0:
+                    pthet += math.pi * 2
                 acc = 1
                 v = pthet - self.curthet
                 if math.fabs(v) > math.pi/2:
@@ -83,7 +89,18 @@ class Enemy():
                 pygame.draw.rect(background, (0,255,0), (self.rect.left, self.rect.top - 10, (self.health*self.rect.width)/self.starthealth, 4))
 
             onBlock = False
-            pygame.draw.rect(background,color,self.rect)
+            self.head = pygame.Rect(self.rect.left + 3, self.rect.top,self.rect.width-6,self.rect.height/3)
+            self.body = pygame.Rect(self.rect.left,self.rect.top + self.rect.height/3,self.rect.width,self.rect.height*2/3)
+
+            if (math.degrees(self.curthet) > -70 and math.degrees(self.curthet) < 70) or (math.degrees(self.curthet) > 290 and math.degrees(self.curthet) < 430):
+                background.blit(pygame.transform.scale(self.images[1],(self.head.width,self.head.height)),self.head)
+            elif (math.degrees(self.curthet) > 110 and math.degrees(self.curthet) < 250) or (math.degrees(self.curthet) < -110 and math.degrees(self.curthet) > -250):
+                background.blit(pygame.transform.scale(self.images[2],(self.head.width,self.head.height)),self.head)
+            else:
+                img = self.images[0]
+                background.blit(pygame.transform.scale(img,(self.head.width,self.head.height)),self.head)
+
+            pygame.draw.rect(background,color,self.body)
             pygame.draw.line(background, (255,0,0),(self.rect.centerx,self.rect.centery),(self.rect.centerx + (20 * math.cos(self.curthet)),self.rect.centery + (20 * (math.sin(self.curthet)))),3)
             self.curblock = None
             a = self.rect.centerx-player.rect.centerx
@@ -242,7 +259,11 @@ class ebullet():
         if show:
             pygame.draw.circle(background,color,(int(self.pos[0]),int(self.pos[1])),3)
 
-        if player.rect.collidepoint(self.pos[0],self.pos[1]):
+        if player.head.collidepoint(self.pos[0],self.pos[1]):
+            dead = True
+            player.health -= 2
+            player.healthtimer = 0
+        if player.body.collidepoint(self.pos[0],self.pos[1]):
             dead = True
             player.health -= 1
             player.healthtimer = 0
