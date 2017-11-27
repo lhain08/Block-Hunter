@@ -12,8 +12,9 @@ class player():
         self.maxvel = 16
         self.maxjump = 36
         self.var = True
-        self.health = 10
-        self.healthtimer = 0
+        self.health = 100
+        self.healthtime = 0
+        self.htime = 60
         self.kills = 0
         self.deaths = 0
         self.alive = True
@@ -22,7 +23,7 @@ class player():
         self.skullsurf = pygame.Surface((45,45), SRCALPHA , 32)
         self.skullsurf.blit(self.skulls,(0,0))
         self.skullsurf = self.skullsurf.convert_alpha()
-        self.deadtime = 0
+        self.deadtimer = 0
         self.zone = None
         self.awareness = 0
         self.weapon = None
@@ -40,6 +41,8 @@ class player():
         self.gvar = False
         self.grenum = 1
         self.grenmax = 3
+        self.name = 'Player'
+        self.invintime = 30
     def set_head(self):
         self.headimg = pygame.image.load("Images/front" + str(self.headnum) + ".png")
         self.sideimg = pygame.image.load("Images/side" + str(self.headnum) + ".png")
@@ -51,12 +54,12 @@ class player():
         self.maxvel = 16
         self.maxjump = 36
         self.var = True
-        self.health = 10
-        self.healthtimer = 0
+        self.health = 100
+        self.healthtime = 0
         self.kills = 0
         self.deaths = 0
         self.alive = True
-        self.deadtime = 0
+        self.deadtimer = 0
         self.zone = None
         self.awareness = 0
         self.firetime = 2
@@ -65,6 +68,7 @@ class player():
         self.reloading = False
         self.grenades = []
         self.grenum = self.grenmax
+        self.invintime = 30
     def draw(self, screen, color, walls, xscroll, yscroll, spawnpoints, enemies, truescreen):
         key = pygame.key.get_pressed()
         if (self.clip <=0 or key[K_r]) and not self.reloading and self.clip < self.weapon.magsize:
@@ -79,16 +83,20 @@ class player():
                 self.reloading = False
                 self.clip = self.weapon.magsize
         if self.alive:
-            if self.health <10:
-                self.healthtimer +=1
-                if self.healthtimer > 60:
-                    self.health += .1
-                    if self.health >10:
-                        self.health = 10
+            if self.invintime>0:
+                self.invintime-=1
+            if self.health <100:
+                self.healthtime -= 1
+                if self.healthtime <= 0:
+                    self.health += .5
+                    if self.health >100:
+                        self.health = 100
             onBlock = False
             self.head = pygame.Rect(self.rect.left + 3, self.rect.top,self.rect.width-6,self.rect.height/3)
             self.body = pygame.Rect(self.rect.left,self.rect.top + self.rect.height/3,self.rect.width,self.rect.height*2/3)
             pygame.draw.rect(screen,color,self.body)
+            if self.invintime:
+                pygame.draw.rect(screen,(180,180,255),self.rect,(self.invintime/10)+1)
             mx,my = pygame.mouse.get_pos()
             mx += xscroll
             my += yscroll
@@ -127,8 +135,8 @@ class player():
 
             screen.blit(img,imrec)
 
-            if self.health <10:
-                pygame.draw.rect(screen,(0,255,0),(self.rect.left, self.rect.top - 10, self.health * 3, 4))
+            if self.health <100:
+                pygame.draw.rect(screen,(0,255,0),(self.rect.left, self.rect.top - 10, self.health * .3, 4))
             self.vel[1] += 4
             self.rect.y += self.vel[1]
             if self.rect.bottom > 1200:
@@ -218,12 +226,14 @@ class player():
             self.zone = poss
 
         else:
+            if self.curstreak:
+                self.curstreak = 0
             self.rect.y -= 1
             screen.blit(self.skullsurf, self.rect)
-            self.deadtime -= 1
-            if self.deadtime <=0:
+            self.deadtimer -= 1
+            if self.deadtimer <=0:
                 self.rect.x, self.rect.y = spawnpoints[rand(0, len(spawnpoints) - 1)]
-                self.health = 10
+                self.health = 100
                 self.clip = self.weapon.magsize
                 self.grenum = self.grenmax
                 self.vel = [0,0]
@@ -261,20 +271,24 @@ class bullet():
                 if enemy.head.collidepoint((int(self.x),int(self.y))) or enemy.body.collidepoint((int(self.x),int(self.y))):
                     if enemy.alive and enemy.health > 0:
                         dead = True
-                        enemy.health -= player.weapon.damage
-                        if enemy.head.collidepoint((int(self.x),int(self.y))):
+                        if (enemy.headshot and enemy.head.collidepoint((int(self.x), int(self.y)))) or not enemy.headshot:
                             enemy.health -= player.weapon.damage
-                        if enemy.health <= 0:
-                            player.kills += 1
-                            player.curstreak += 1
-                        break
+                            if enemy.head.collidepoint((int(self.x),int(self.y))):
+                                enemy.health -= player.weapon.damage
+                            enemy.healthtime = enemy.htime
+                            if enemy.health <= 0:
+                                enemy.deaths += 1
+                                enemy.deadtimer = 70
+                                enemy.alive = False
+                                player.kills += 1
+                                player.curstreak += 1
+                            break
 
             for wall in walls:
                 if wall.rect.collidepoint((int(self.x),int(self.y))):
                     dead = True
 
-        if dead:
-            return True
+        return dead
 
 class grenade():
     def __init__(self, theta, player, mx, my):
@@ -341,9 +355,11 @@ class grenade():
                 if hit:
                     damage = 1.5*(22*((100/(math.hypot(self.pos[0]-e.rect.centerx,self.pos[1]-e.rect.centery)+10))**2))
                     e.health -= damage
+                    e.healthtime = e.htime
                     if e.health <= 0 and e.alive:
                         e.deadtimer = 70
                         e.alive = False
+                        e.deaths += 1
                         player.kills += 1
                         player.curstreak += 1
 
