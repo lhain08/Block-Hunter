@@ -5,6 +5,11 @@ from random import randint as rand
 import random as rander
 from pygame.locals import *
 
+width = 900
+height = 600
+
+bwidth = 1800
+bheight = 1200
 
 global lcash, cash, weapon
 
@@ -51,17 +56,17 @@ cashrect = cashico.get_rect()
 cashrect.left = 5
 cashrect.top = 0
 
+icon = pygame.image.load("Images/icon.png")
+pygame.display.set_icon(icon)
+
+menback = pygame.image.load("Images/menuback.png")
+menback = pygame.transform.scale(menback,(width,height))
+
 helptext = "After clicking 'Play' on the main menu, select the number of enemies you want to fight and the number of kills needed to win. " \
            "You can toggle headshots only, but this increases the difficulty so it is recommended that you leave this off if you are new. " \
            "To play, use WASD or the arrow keys to move, aim and shoot with the mouse, and throw grenades by pressing 'F' but be careful, you have a limited number of grenades. " \
            "Certain guns have different size clips, your ammo and grenades are displayed in the bottom right of the screen. A minimap also is displayed in the top right. " \
            "Be careful about staying in one spot for too long, the more you shoot, the more the enemies will be attracted to your location. Good Luck!"
-
-width = 900
-height = 600
-
-bwidth = 1800
-bheight = 1200
 
 #colors
 BLACK = (0,0,0)
@@ -583,7 +588,7 @@ def Menu():
     cvar = False
     global player
     while True:
-        screen.fill((60,0,0))
+        screen.blit(menback,(0,0))
         screen.blit(cashico,cashrect)
         ct = cfont.render(str(cash),1,(0,180,0))
         ctp = ct.get_rect()
@@ -716,7 +721,7 @@ def Customize():
     n = 4
     cvar = False
     while True:
-        screen.fill((0,0,0))
+        screen.blit(menback,(0,0))
         v = 1
         p = 1
         h =20
@@ -907,7 +912,7 @@ def Setup():
         a,b,c = pygame.mouse.get_pressed()
         if not a:
             cvar = False
-        screen.fill((0,0,0))
+        screen.blit(menback,(0,0))
         font = pygame.font.Font(None,150)
         gst = font.render("GAME SETUP",1,GREEN)
         gstp = gst.get_rect()
@@ -1113,7 +1118,7 @@ def Shop():
     global player, cash
     breakout = False
     while True:
-        screen.fill((100,100,100))
+        screen.blit(menback,(0,0))
         screen.blit(cashico,cashrect)
         try:
             cfont = pygame.font.SysFont(None, 50)
